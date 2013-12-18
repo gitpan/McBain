@@ -1,0 +1,44 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.73.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+SHA1 c3ec05f6e897ade30b1f19c8cd224df340020bb3 Changes
+SHA1 3dc0c952e2f662d920830fd561e6d0308a5346ef INSTALL
+SHA1 4dceae0eaef7a9ac83dea9d378c954bfce55223a LICENSE
+SHA1 9cb72b2980d194ba57cc313791f8031fc0cab603 MANIFEST
+SHA1 0aa434651f4d8185e4f5f80bc310bcd97c8dd374 MANIFEST.SKIP
+SHA1 a801e9f638c3d1c16c2c295d2b458f6b58722d2a META.json
+SHA1 e0923395599f58679c74f76bf040c64da3312447 META.yml
+SHA1 e6eaebeb67ecfd23c8c00a01aa8dda8d5e09038c Makefile.PL
+SHA1 752dfcb143e432f1f4b18b2ec85207ffbdcc2bcb README
+SHA1 d55eff6835a82446e45e11f449ee212a97cbf88e bin/mcbain2pod
+SHA1 77d15bddded318264dfcf5bb1e357baa67ac97ca dist.ini
+SHA1 73f2d3f625582f7b31edba49b8c6867f3a1c303a lib/McBain.pm
+SHA1 66f94703722da4b1742b50b22115d3a03eb79093 lib/McBain/Directly.pm
+SHA1 1c79716e082ccd6c437cedbe672594059ba815db t/00-load.t
+SHA1 08c17f8fe6c82b93806d424b584e0866564849dd t/01-simple.t
+SHA1 a3e66100cc7f82d2cf18ffef60a8e3c2b9b84cab t/lib/Mendoza.pm
+SHA1 6a24b38d5fe6a486e2a82362822e4b619fdbb7e1 t/lib/Mendoza/Math.pm
+SHA1 d3f317af734cbe21130f8480c728d6e599b40112 t/lib/Mendoza/Math/Constants.pm
+SHA1 87768d177f8c2e2df9c591cde869e7c8a245555e t/release-dist-manifest.t
+SHA1 9433c240fe590bc404ab68ff63984df763e347ed t/release-pod-coverage.t
+SHA1 b30cbdfaf935017c4568c0c91b242438cb87786e t/release-pod-syntax.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iF4EAREIAAYFAlKyJvkACgkQa4OHQAFM10dDFwD/akfSeGAie+ygFFUV3/poqldp
+tFjk68oYixOwtuLxptkA/Asz8U3pMPn7lKn+AGceuesqvS2H15EgX086l+D8KOXS
+=0ZI0
+-----END PGP SIGNATURE-----
