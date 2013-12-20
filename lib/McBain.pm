@@ -16,7 +16,7 @@ use File::Spec;
 use Scalar::Util qw/blessed/;
 use Try::Tiny;
 
-our $VERSION = "1.000000";
+our $VERSION = "1.001000";
 $VERSION = eval $VERSION;
 
 =head1 NAME
@@ -25,7 +25,7 @@ McBain - Framework for building portable, auto-validating and self-documenting A
 
 =head1 VERSION
 
-version 1.000000
+version 1.001000
 
 =head1 SYNOPSIS
 
@@ -305,6 +305,19 @@ sub import {
 		confess { code => 404, error => "Route $route not found" }
 			unless $r;
 
+		# is this an OPTIONS request?
+		if ($meth eq 'OPTIONS') {
+			my %options;
+			foreach my $m (keys %$r) {
+				$options{$m} = {};
+				$options{$m}->{description} = $r->{$m}->{description}
+					if $r->{$m}->{description};
+				$options{$m}->{params} = $r->{$m}->{params}
+					if $r->{$m}->{params};
+			}
+			return \%options;
+		}
+
 		# does this route have the HTTP method?
 		confess { code => 405, error => "Method $meth not available for route $route" }
 			unless exists $r->{$meth};
@@ -394,7 +407,7 @@ example, an API might have a topic called "math" that provides math-related
 methods such as add, multiply, divide, etc.
 
 Since topics are hierarchical, every API will have a root topic, which may have
-zero or more child topics. The root topic if where your API begins, and it's
+zero or more child topics. The root topic is where your API begins, and it's your
 decision how to utilize it. If your API is short and simple, with methods that
 cannot be categorized into different topics, then the entire API can live within the
 root topic itself, with no child topics at all. If, however, you're building a
@@ -408,10 +421,14 @@ like their package names, in lowercase, relative to the root topic, with C</>
 as a separator instead of Perl's C<::>, and starting with a slash.
 For example, lets look at the following API packages:
 
-	MyAPI				- the root topic, will be called "/"
-	MyAPI::Math			- a child topic, will be called "/math"
-	MyAPI::Math::Constants	- a child-of-child, will be called "/math/constants"
-	MyAPI::Strings		- a child topic, will be called "/strings"
+	+------------------------+-------------------+------------------+
+	| Package Name           | Topic Name        | Description      |
+	+========================+===================+==================+
+	| MyAPI                  | "/"               | the root topic   |
+	| MyAPI::Math            | "/math"           | a child topic    |
+	| MyAPI::Math::Constants | "/math/constants" | a child-of-child |
+	| MyAPI::Strings         | "/strings"        | a child topic    |
+	+------------------------+--------------------------------------+
 
 You will notice that the naming of the topics is similar to paths in HTTP URIs.
 This is by design, since I wrote C<McBain> mostly for writing web applications
@@ -461,10 +478,14 @@ say your API has a topic called C</articles>, that deals with articles in your
 blog. Every article has an integer ID. The C</articles> topic can have the following
 routes and methods:
 
-	POST:/articles/		- Create a new article (root route /)
-	GET:/articles/(\d+)	- Read an article
-	PUT:/articles/(\d+)	- Update an article
-	DELETE:/articles/(\d+)	- Delete an article
+	+------------------------+--------------------------------------+
+	| Namespace              | Description                          |
+	+========================+======================================+
+	| POST:/articles/        | Create a new article (root route /)  |
+	| GET:/articles/(\d+)    | Read an article                      |
+	| PUT:/articles/(\d+)    | Update an article                    |
+	| DELETE:/articles/(\d+) | Delete an article                    |
+	+------------------------+--------------------------------------+
 
 Methods are defined using the L<get()|"get( $route, %opts )">, L<post()|"post( $route, %opts )">,
 L<put()|"put( $route, %opts )"> and L<del()|"del( $route, %opts )"> subroutines.
@@ -523,6 +544,41 @@ the generated regular expression will be C<^/articles/(\d+)$>. Notice how the to
 and route are concatenated, and how the C<^> and C<$> metacharacters are added to
 the beginning and end of the regex, respectively. This means it is impossible to
 create partial regexes, which only pose problems in my experience.
+
+=head2 OPTIONS REQUESTS
+
+Every route defined by the API also automatically gets an C<OPTIONS> method,
+again just like HTTP. This method returns a list of HTTP-style methods allowed
+on the route. The return format depends on the runner module used. The direct
+runner will return a hash-ref with keys being the HTTP methods, and values being
+hash-refs holding the C<description> and C<params> definitions (if any).
+
+For example, let's look at the following route:
+
+	get '/something' => (
+		description => 'Gets something',
+		cb => sub { }
+	);
+
+	put '/something' => (
+		description => 'Updates something',
+		params => { new_content => { required => 1 } },
+		cb => sub { }
+	);
+
+Calling C<OPTIONS:/something> will return:
+
+	{
+		GET => {
+			description => "Gets something"
+		},
+		PUT => {
+			description => "Updates something",
+			params => {
+				new_content => { required => 1 }
+			}
+		}
+	}
 
 =head2 CALLING METHODS FROM WITHIN METHODS
 
