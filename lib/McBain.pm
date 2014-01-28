@@ -16,7 +16,7 @@ use File::Spec;
 use Scalar::Util qw/blessed/;
 use Try::Tiny;
 
-our $VERSION = "1.001000";
+our $VERSION = "1.001001";
 $VERSION = eval $VERSION;
 
 =head1 NAME
@@ -25,7 +25,7 @@ McBain - Framework for building portable, auto-validating and self-documenting A
 
 =head1 VERSION
 
-version 1.001000
+version 1.001001
 
 =head1 SYNOPSIS
 
@@ -195,7 +195,7 @@ sub import {
 
 	# figure out the topic name from this class
 	my $topic = '/';
-	unless ($target eq $root) {
+	unless ($target eq $root) { 
 		my ($rel_name) = ($target =~ m/^${root}::(.+)$/)[0];
 		$topic = '/'.lc($rel_name);
 		$topic =~ s!::!/!g;
@@ -343,16 +343,15 @@ sub import {
 sub _find_root {
 	my $class = shift;
 
-	if ($class =~ m/::[^:]+$/) {
-		# we have a parent, and it might
-		# be the root. otherwise the root
-		# is us
-		my $parent = _find_root($`);
-		return $parent || $class;
-	} else {
-		# we don't have a parent, so we are the root
-		return $class;
+	my $parent = $class;
+
+	while ($parent =~ m/::[^:]+$/) {
+		return $`
+			if $INFO{$`};
+		$parent = $`;
 	}
+
+	return $parent;
 }
 
 # _load_topics( $base, $limit )

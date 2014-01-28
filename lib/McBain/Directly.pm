@@ -11,7 +11,7 @@ McBain::Directly - Use a McBain API directly from Perl code.
 
 =head1 VERSION
 
-version 1.001000
+version 1.001001
 
 =head1 SYNOPSIS
 

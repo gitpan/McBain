@@ -31,4 +31,4 @@ requires:
 resources:
   homepage: https://github.com/ido50/McBain
   repository: https://github.com/ido50/McBain.git
-version: 1.001000
+version: 1.001001
