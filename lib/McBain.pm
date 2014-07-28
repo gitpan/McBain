@@ -16,16 +16,12 @@ use File::Spec;
 use Scalar::Util qw/blessed/;
 use Try::Tiny;
 
-our $VERSION = "1.001001";
+our $VERSION = "1.002000";
 $VERSION = eval $VERSION;
 
 =head1 NAME
  
 McBain - Framework for building portable, auto-validating and self-documenting APIs
-
-=head1 VERSION
-
-version 1.001001
 
 =head1 SYNOPSIS
 
@@ -42,7 +38,7 @@ version 1.001001
 		cb => sub {
 			my ($api, $params) = @_;
 
-			return $params->{one} + $params->{two};
+			return $params->{one} * $params->{two};
 		}
 	);
 
@@ -82,7 +78,9 @@ C<McBain> is extremely lightweight, with minimal dependencies on non-core module
 
 =item * B<Portability>
 
-C<McBain> APIs can be run/used in a variety of ways with absolutely no changes of code. For example, they can be used B<directly from Perl code> (see L<McBain::Directly>), as fully fledged B<RESTful PSGI web services> (see L<McBain::WithPSGI>), or as B<Gearman workers> (see L<McBain::WithGearmanXS>). Seriously, no change of code required. More L<McBain runners|"MCBAIN RUNNERS"> are yet to come, and you can create your own, god knows I don't have the time or motivation or talent. Why should I do it for you anyway?
+C<McBain> APIs can be run/used in a variety of ways with absolutely no changes of code. For example, they can be used B<directly from Perl code> (see L<McBain::Directly>), as fully fledged B<RESTful PSGI web services> (see L<McBain::WithPSGI>), as B<Gearman workers> (see L<McBain::WithGearmanXS>), or as B<ZeroMQ workers> (see L<McBain::WithZeroMQ>). Seriously, no change of code required. More L<McBain runners|"MCBAIN RUNNERS"> are yet to come (plus search CPAN to see if more are available), and you can
+easily create your own, god knows I don't have the time or motivation or talent. Why should I do it
+for you anyway?
 
 =item * B<Auto-Validation>
 
@@ -193,9 +191,16 @@ sub import {
 	# create the routes hash for $root
 	$INFO{$root} ||= {};
 
+	# were there any options passed?
+	if (scalar @_) {
+		my %opts = map { s/^-//; $_ => 1 } @_;
+		# apply the options to the root package
+		$INFO{$root}->{_opts} = \%opts;
+	}
+
 	# figure out the topic name from this class
 	my $topic = '/';
-	unless ($target eq $root) { 
+	unless ($target eq $root) {
 		my ($rel_name) = ($target =~ m/^${root}::(.+)$/)[0];
 		$topic = '/'.lc($rel_name);
 		$topic =~ s!::!/!g;
@@ -247,6 +252,24 @@ sub import {
 		};
 	}
 
+	my $forward_target = $target;
+
+	if ($target eq $root && $INFO{$root}->{_opts} && $INFO{$root}->{_opts}->{contextual}) {
+		# we're running in contextual mode, which means the API
+		# should have a Context class called $root::Context, and this
+		# is the class to which we should export the forward() method
+		# (the call() method is still exported to the API class).
+		# when call() is, umm, called, we need to create a new instance
+		# of the context class and use forward() on it to handle the
+		# request
+		$forward_target = $root.'::Context';
+		eval "require $forward_target";
+		croak "Can't load context class $forward_target: $@"
+			if $@;
+		croak "Context class doesn't have create_from_env() method"
+			unless $forward_target->can('create_from_env');
+	}
+
 	# export the call method, the one that actually
 	# executes API methods
 	*{"${target}::call"} = sub {
@@ -256,8 +279,12 @@ sub import {
 			# env hash-ref
 			my $env = __PACKAGE__->generate_env(@args);
 
+			my $ctx = $INFO{$root}->{_opts} && $INFO{$root}->{_opts}->{contextual} ?
+				$forward_target->create_from_env($env, @args) :
+					$self;
+
 			# handle the request
-			my $res = $self->forward($env->{METHOD}.':'.$env->{ROUTE}, $env->{PAYLOAD});
+			my $res = $ctx->forward($env->{METHOD}.':'.$env->{ROUTE}, $env->{PAYLOAD});
 
 			# ask the runner module to generate an appropriate
 			# response with the result
@@ -279,8 +306,8 @@ sub import {
 	# export the forward method, which is both used internally
 	# in call(), and can be used by API authors within API
 	# methods
-	*{"${target}::forward"} = sub {
-		my ($self, $meth_and_route, $payload) = @_;
+	*{"${forward_target}::forward"} = sub {
+		my ($ctx, $meth_and_route, $payload) = @_;
 
 		my ($meth, $route) = split(/:/, $meth_and_route);
 
@@ -309,11 +336,7 @@ sub import {
 		if ($meth eq 'OPTIONS') {
 			my %options;
 			foreach my $m (keys %$r) {
-				$options{$m} = {};
-				$options{$m}->{description} = $r->{$m}->{description}
-					if $r->{$m}->{description};
-				$options{$m}->{params} = $r->{$m}->{params}
-					if $r->{$m}->{params};
+				%{$options{$m}} = map { $_ => $r->{$m}->{$_} } grep($_ ne 'cb', keys(%{$r->{$m}}));
 			}
 			return \%options;
 		}
@@ -328,12 +351,12 @@ sub import {
 		confess { code => 400, error => "Parameters failed validation", rejects => $params_ret->{_rejects} }
 			if $params_ret->{_rejects};
 
-		return $r->{$meth}->{cb}->($self, $params_ret, @captures);
+		return $r->{$meth}->{cb}->($ctx, $params_ret, @captures);
 	};
 
 	# we're done with exporting, now lets try to load all
 	# child topics (if any), and collect their method definitions
-	_load_topics($target);
+	_load_topics($target, $INFO{$root}->{_opts});
 }
 
 # _find_root( $current_class )
@@ -343,24 +366,23 @@ sub import {
 sub _find_root {
 	my $class = shift;
 
-	my $parent = $class;
-
-	while ($parent =~ m/::[^:]+$/) {
+	my $copy = $class;
+	while ($copy =~ m/::[^:]+$/) {
 		return $`
 			if $INFO{$`};
-		$parent = $`;
+		$copy = $`;
 	}
 
-	return $parent;
+	return $class;
 }
 
-# _load_topics( $base, $limit )
+# _load_topics( $base, [ \%opts ] )
 # -- finds and loads the child topics of the class we're
 #    currently importing into, automatically requiring
 #    them and thus importing McBain into them as well
 
 sub _load_topics {
-	my ($base, $limit) = @_;
+	my ($base, $opts) = @_;
 
 	# this code is based on code from Module::Find
 
@@ -380,7 +402,12 @@ sub _load_topics {
 			$pkg =~ s/\.pm$//;
 			$pkg = join('::', File::Spec->splitdir($pkg));
 
-			require File::Spec->catdir($inc_dir, $file);
+			my $req = File::Spec->catdir($inc_dir, $file);
+
+			next if $req =~ m!/Context.pm$!
+				&& $opts && $opts->{contextual};
+
+			require $req;
 		}
 	}
 }
@@ -636,6 +663,102 @@ that does not conform to this format, it will generate an exception with
 C<code> 500 (indicating "Internal Server Error"), and the C<error> key will
 hold the exception as is.
 
+=head2 CONTEXTUAL MODE
+
+I<< B<Note:> contextual mode is an experimental feature introduced in v1.2.0 and
+may change in the future. >>
+
+Contextual mode is an optional way of writing C<McBain> APIs, reminiscent of
+web application frameworks such as L<Catalyst> and L<Leyland>. The main idea
+is that a context object is created for every request, and follows it during
+its entire life.
+
+In regular mode, the API methods receive the class of the root package (or its
+object, if writing object oriented APIs), and a hash-ref of parameters. This is
+okay for simple APIs, but many APIs need more, like information about the
+user who sent the request.
+
+In contextual mode, the context object can contain user information, methods for
+checking authorization (think role-based and ability-based authorization systems),
+database connections, and anything else your API might need in order to fulfill the
+request.
+
+Writing APIs in contextual mode is basically the same as in regular mode, only you
+need to build a context class. Since C<McBain> doesn't intrude on your OO system of
+choice, constructing the class is your responsibility, and you can use whatever you
+want (like L<Moo>, L<Moose>, L<Class::Accessor>). C<McBain> only requires your
+context class to implement a subroutine named C<create_from_env( \%env,  @args_to_call )>.
+This method will receive the standard environment hash-ref of C<McBain> (which includes
+the keys C<METHOD>, C<ROUTE> and C<PAYLOAD>), plus all of the arguments that were sent to
+the L<call( @args )> method. These are useful for certain runner modules, such as the
+L<PSGI runner|McBain::WithPSGI>, which gets the L<PSGI> hash-ref, from which you can
+extract session data, user information, HTTP headers, etc. Note that this means that if
+you plan to use your API with different runner modules, your C<create_from_env()> method
+should be able to parse differently formatted arguments.
+
+Note that currently, the context class has to be named C<__ROOT__::Context>, where
+C<__ROOT__> is the name of your API's root package. So, for example, if your API's
+root package is named C<MyAPI>, then C<McBain> will expect C<MyAPI::Context>.
+
+When writing in contextual mode, your API methods will receive the context object
+instead of the root package/object, and the parameters hash-ref.
+
+Let's look at a simple example for writing APIs in contextual mode. Say our API
+is called C<MyAPI>. Let's begin with the context class, C<MyAPI::Context>:
+
+	package MyAPI::Context;
+
+	use Moo;
+	use Plack::Request;
+
+	has 'user_agent' => (
+		is => 'ro',
+		default => sub { 'none' }
+	);
+
+	sub create_from_env {
+		my ($class, $mcbain_env, @call_args) = @_;
+
+		my $user_agent;
+
+		if ($ENV{MCBAIN_WITH} eq 'WithPSGI') {
+			# extract user agent from the PSGI env,
+			# which will be the first item in @call_args
+			$user_agent = Plack::Request->new($call_args[0])->user_agent;
+		}
+
+		return $class->new(user_agent => $user_agent);
+	}
+
+	1;
+
+Now let's look at the API itself:
+
+	package MyAPI;
+
+	use McBain -contextual;
+
+	get '/' => (
+		cb => sub {
+			my ($c, $params) = @_;
+
+			if ($c->user_agent =~ m/Android/) {
+				# do it this way
+			} else {
+				# do it that way
+			}
+
+			# you can still forward to other methods
+			$c->forward('GET:/something_else', \%other_params);
+		}
+	);
+
+	1;
+
+So as you can see, the only real change for API packages is the need
+to write C<use McBain -contextual> instead of C<use McBain>. The only
+"challenge" is writing the context class.
+
 =head1 MCBAIN RUNNERS
 
 A runner module is in charge of loading C<McBain> APIs in a specific way.
@@ -659,6 +782,8 @@ RESTful web application.
 
 =item * L<McBain::WithGearmanXS> - Turn an API into a JSON-to-JSON
 Gearman worker.
+
+=item * L<McBain::WithZeroMQ> - Turn an API into a JSON-to-JSON ZeroMQ REP worker.
 
 =back
 
@@ -814,7 +939,7 @@ Ido Perlmuter <ido@ido50.net>
  
 =head1 LICENSE AND COPYRIGHT
  
-Copyright (c) 2013, Ido Perlmuter C<< ido@ido50.net >>.
+Copyright (c) 2013-2014, Ido Perlmuter C<< ido@ido50.net >>.
  
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself, either version

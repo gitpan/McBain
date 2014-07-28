@@ -11,10 +11,6 @@ use Module::Load;
  
 mcbain2pod - Generate a POD file for a McBain API
 
-=head1 VERSION
-
-version 1.001001
-
 =head1 SYNOPSIS
 
 	# in the command line

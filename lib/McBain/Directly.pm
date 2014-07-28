@@ -9,10 +9,6 @@ use Carp;
  
 McBain::Directly - Use a McBain API directly from Perl code.
 
-=head1 VERSION
-
-version 1.001001
-
 =head1 SYNOPSIS
 
 	# if the API is object oriented
@@ -147,7 +143,7 @@ Ido Perlmuter <ido@ido50.net>
  
 =head1 LICENSE AND COPYRIGHT
  
-Copyright (c) 2013, Ido Perlmuter C<< ido@ido50.net >>.
+Copyright (c) 2013-2014, Ido Perlmuter C<< ido@ido50.net >>.
  
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself, either version
@@ -184,3 +180,4 @@ SUCH DAMAGES.
 
 1;
 __END__
+
