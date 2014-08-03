@@ -35,11 +35,12 @@ my %WriteMakefileArgs = (
     "warnings" => 0
   },
   "TEST_REQUIRES" => {
+    "Data::Dumper" => 0,
     "Test::Exception" => 0,
     "Test::More" => 0,
     "lib" => 0
   },
-  "VERSION" => "1.002000",
+  "VERSION" => "1.003000",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -49,6 +50,7 @@ my %WriteMakefileArgs = (
 my %FallbackPrereqs = (
   "Brannigan" => 0,
   "Carp" => 0,
+  "Data::Dumper" => 0,
   "File::Spec" => 0,
   "Getopt::Compact" => 0,
   "IO::Handle" => 0,
