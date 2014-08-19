@@ -29,7 +29,6 @@
             "Module::Load" : "0",
             "Scalar::Util" : "0",
             "Try::Tiny" : "0",
-            "parent" : "0",
             "perl" : "5.006",
             "strict" : "0",
             "warnings" : "0"
@@ -56,6 +55,6 @@
          "web" : "https://github.com/ido50/McBain"
       }
    },
-   "version" : "1.003000"
+   "version" : "2.000000"
 }
 

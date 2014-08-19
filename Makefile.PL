@@ -30,7 +30,6 @@ my %WriteMakefileArgs = (
     "Module::Load" => 0,
     "Scalar::Util" => 0,
     "Try::Tiny" => 0,
-    "parent" => 0,
     "strict" => 0,
     "warnings" => 0
   },
@@ -40,7 +39,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "lib" => 0
   },
-  "VERSION" => "1.003000",
+  "VERSION" => "2.000000",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -60,7 +59,6 @@ my %FallbackPrereqs = (
   "Test::More" => 0,
   "Try::Tiny" => 0,
   "lib" => 0,
-  "parent" => 0,
   "strict" => 0,
   "warnings" => 0
 );
