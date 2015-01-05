@@ -15,6 +15,9 @@ lib/McBain/Directly.pm
 t/00-load.t
 t/01-simple.t
 t/02-contextual.t
+t/03-context_lookup.t
+t/lib/Luftwaffe/API/TheRootOfIt.pm
+t/lib/Luftwaffe/Context.pm
 t/lib/Mendoza.pm
 t/lib/Mendoza/Math.pm
 t/lib/Mendoza/Math/Constants.pm
